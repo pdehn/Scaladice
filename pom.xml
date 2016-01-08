@@ -36,6 +36,12 @@
             <version>${scalaVersion}</version>
         </dependency>
 
+        <dependency>
+            <groupId>io.github.nicolasstucki</groupId>
+            <artifactId>multisets_${scalaBinaryVersion}</artifactId>
+            <version>0.3</version>
+        </dependency>
+
         <!-- test -->
         <dependency>
             <groupId>org.scalatest</groupId>

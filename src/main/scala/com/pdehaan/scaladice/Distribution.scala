@@ -3,6 +3,7 @@ package com.pdehaan.scaladice
 import java.util.concurrent.ThreadLocalRandom
 
 import scala.annotation.tailrec
+import scala.collection.Bag
 
 case class Distribution[A](weightedValues: Array[(A, Double)])
 {
@@ -18,7 +19,8 @@ case class Distribution[A](weightedValues: Array[(A, Double)])
 
     /**
      * Normalizes weights to sum to 1.0
-     * @return
+      *
+      * @return
      */
     private def normalize = {
         val wt = weightedValues map { _._2 } sum
@@ -31,7 +33,8 @@ case class Distribution[A](weightedValues: Array[(A, Double)])
     /**
      * Collapses all weighted value pairs that have the same value, summing the
      * weights for each group of pairs with the same value
-     * @return
+      *
+      * @return
      */
     private def collapse = {
         val xs = weightedValues groupBy { _._1 } map {
@@ -100,19 +103,19 @@ case class Distribution[A](weightedValues: Array[(A, Double)])
      * Create a new distribution that represents the result of sampling this
      * distribution n times and combining the results, ignoring sample order.
      */
-    final def repeatUnordered(n: Int)(implicit ord: Ordering[A]) =
+    final def repeatUnordered(n: Int) =
     {
-        def append(sas: Map[A, Int]): Distribution[Map[A, Int]] =
-            map({ case v => sas.updated(v, sas.getOrElse(v, 0) + 1)})
+        implicit val config = Bag.configuration.compact[A]
+
+        def append(sas: Bag[A]): Distribution[Bag[A]] =
+            map(sas + _)
 
         @tailrec
-        def f(d: Distribution[Map[A, Int]], n: Int): Distribution[Map[A, Int]] =
+        def f(d: Distribution[Bag[A]], n: Int): Distribution[Bag[A]] =
             if (n == 1) d
             else f(d.flatMap(append), n - 1)
 
-        f(map(x => Map(x -> 1)), n).map {
-            case m => m.toSeq.flatMap(x => (1 to x._2).map(_ => x._1).sorted)
-        } sorted
+        f(map(Bag(_)), n)
     }
 
     /**
@@ -266,6 +269,33 @@ object Distribution {
         Distribution(weightedValues.map({
             case (v, w) => v -> n.toDouble(w)
         }).toArray).normalize
+
+    implicit class NumericBagDistributionOps[A : Numeric](d: Distribution[Bag[A]])
+    {
+        /**
+          * Convert bag to sorted Seq
+          */
+        def sorted = d.map(_.toSeq.sorted)
+
+        /**
+          * Nth smallest element
+          */
+        def nth(n: Int) =
+            sorted.nth(n)
+
+        /**
+          * Sum of Nth largest elements
+          */
+        def keep(n: Int) =
+            sorted.keep(n)
+
+        /**
+          * Sum of Nth smallest elements
+          */
+        def keepLowest(n: Int) =
+            sorted.keepLowest(n)
+    }
+
 
     /**
      * Operations dealing with distributions of sequences of values.
